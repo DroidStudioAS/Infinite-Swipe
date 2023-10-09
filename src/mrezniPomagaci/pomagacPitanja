@@ -1,0 +1,102 @@
+import { createPinia } from "pinia"; 
+import { useSkladiste } from "../stores/Skladiste";
+import PitanjeInfo from "../models/pitanja/pitanjeInfo";
+import axios from "axios";
+
+const pomagacPitanja ={
+    
+    async dohvatiVisePitanja (){       
+		/*****************Odredjivanje parametra*******************/ 
+        let rez =  null;
+        const Skladiste = useSkladiste();
+        //odredjivanje tezine
+        let minMax = this.odrediTezinuPitanja(Skladiste.score);
+        console.log("minmax dinamicki [0]: " + minMax[0]);
+        let minimalna_tezina_pitanja = minMax[0]
+        console.log("minmax dinamicki [1]: " + minMax[1]);
+        let maksimalna_tezina_pitanja = minMax[1];
+        console.log("kampanja", Skladiste.playingCampaign)
+
+        /***************MREZNA LOGIKA****************/
+        if(!Skladiste.playingCampaign){
+        try{
+            const formData = new FormData();
+             formData.append("id_koje_necu", Skladiste.id_koje_necu);
+             formData.append("broj_pitanja", 5);
+             formData.append("minimalna_tezina_pitanja", minimalna_tezina_pitanja);
+             formData.append("maksimalna_tezina_pitanja", maksimalna_tezina_pitanja);
+             formData.append("kategorije", Skladiste.categories);
+			let resultat = await axios.post("http://181g123.e2.mars-hosting.com/kviz-projekat/questions/query",formData);
+			if(resultat.data.pitanja!=null){
+				rez=resultat.data.pitanja;
+			}
+		}catch(error){
+			console.log(error);
+		}finally{
+            //vraca niz pitanja ili null ako logika pukne
+            //console.log(rez[3]);
+            //console.log("dinamicki minMax: " + min + " " + max)
+            return rez;
+        }
+    }else if(Skladiste.playingCampaign){
+        try{
+            const formData = new FormData();
+            formData.append("id_koje_necu", Skladiste.id_koje_necu);
+            formData.append("broj_pitanja", Skladiste.campaignNumOfQuestions);
+            formData.append("minimalna_tezina_pitanja", Skladiste.campaignDifficulty);
+            formData.append("maksimalna_tezina_pitanja", Skladiste.campaignDifficulty);
+            formData.append("kategorije", Skladiste.campaignCategories);
+           let resultat = await axios.post("http://181g123.e2.mars-hosting.com/kviz-projekat/questions/query",formData);
+           if(resultat.data.pitanja!=null){
+               rez=resultat.data.pitanja;
+           }      
+         }catch(err){
+            console.log(err);
+        }finally{
+            return rez;
+        }
+    }
+	},
+    mapirajPitanja(sirova_pitanja, odg1, odg2){
+        let modelovana_pitanja = [];
+        if(sirova_pitanja==null){
+            return false;
+        }
+        for(let x of sirova_pitanja){
+            console.log("pitanje iz ulaza: " + x.answer_1);
+            let novoPitanje = new PitanjeInfo(x.title,x.correct_answer, x.answer_1, x.answer_2, x.difficulty, x.category);
+            modelovana_pitanja.push(novoPitanje);
+        }
+        return modelovana_pitanja;
+
+    },
+    odrediTezinuPitanja(score){
+        let minTezina = 0;
+        let maxTezina = 0;
+        let minMax = [];
+       
+         if(score>=0 && score<=20){
+                minTezina=1;
+                maxTezina=2;
+            }else if(score>=21 && score <=50){
+                minTezina=2;
+                maxTezina=3;
+            }else if(score>=51 && score<=100){
+                minTezina=3;
+                maxTezina=4;
+            }else if(score>=101 && score <=150){
+                minTezina=4;
+                maxTezina=5;
+            }else {
+                minTezina=5;
+                maxTezina=5;
+            }
+           
+        minMax.push(minTezina);
+        minMax.push(maxTezina);
+        console.log(minMax);
+        return minMax;   
+        }  
+}
+
+export default pomagacPitanja
